@@ -347,7 +347,6 @@ class ImageNetVID(IMDB):
                 for detection in detections:
                     all_boxes = detection[0]
                     frame_ids = detection[1]
-                    print frame_ids
                     for im_ind in range(len(frame_ids)):
                         for cls_ind, cls in enumerate(self.classes):
                             if cls == '__background__':
@@ -397,17 +396,15 @@ class ImageNetVID(IMDB):
                 for j in range(self.frame_seg_len[i]):
                     f.write((self.pattern[i] % (self.frame_seg_id[i] + j)) + ' ' + str(self.frame_id[i] + j) + '\n')
                     
-        # if gpu_number != None:
-        #     filenames = []
-        #     for i in range(gpu_number):
-        #         filename = self.get_result_file_template(i).format('all')
-        #         filenames.append(filename)
-        #     multifiles = True  # contains multi cache results of all boxes
-        # else:
-        #     filenames = self.get_result_file_template().format('all')
-        #     multifiles = False
-        filenames = self.get_result_file_template().format('all')
-        multifiles = False
+        if gpu_number != None:
+            filenames = []
+            for i in range(gpu_number):
+                filename = self.get_result_file_template(i).format('all')
+                filenames.append(filename)
+            multifiles = True  # contains multi cache results of all boxes
+        else:
+            filenames = self.get_result_file_template().format('all')
+            multifiles = False
 
         if self.enable_detailed_eval:
             # init motion areas and area ranges

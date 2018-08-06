@@ -901,8 +901,7 @@ class resnet_v1_101_off_sobel_rfcn(Symbol):
         num_anchors = cfg.network.NUM_ANCHORS
 
         data = mx.sym.Variable(name="data")
-        data_bef = mx.sym.Variable(name="data_bef")
-        data_aft = mx.sym.Variable(name="data_aft")
+        data_ref = mx.sym.Variable(name="data_ref")
         im_info = mx.sym.Variable(name="im_info")
         gt_boxes = mx.sym.Variable(name="gt_boxes")
         rpn_label = mx.sym.Variable(name='label')
@@ -910,7 +909,8 @@ class resnet_v1_101_off_sobel_rfcn(Symbol):
         rpn_bbox_weight = mx.sym.Variable(name='bbox_weight')
 
         # pass through ResNet
-        concat_data = mx.symbol.Concat(*[data, data_bef, data_aft], dim=0)
+        #concat_data = mx.symbol.Concat(*[data, data_bef, data_aft], dim=0)
+        concat_data = mx.symbol.Concat(*[data, data_ref], dim=0)
         conv_feat = self.get_resnet_v1(concat_data)
 
         # # pass through FlowNet
@@ -949,9 +949,9 @@ class resnet_v1_101_off_sobel_rfcn(Symbol):
         # just off with after frame.
         off_pre_conv1 = mx.symbol.Convolution(name='off_pre_conv1', data=conv_feat, num_filter=1008, pad=(0, 0), kernel=(1, 1), stride=(1, 1))
         off_pre_relu1 = mx.symbol.Activation(name='off_pre_relu1', data=off_pre_conv1, act_type='relu')
-        off_pre_feat = mx.sym.SliceChannel(off_pre_relu1, axis=0, num_outputs=3) # data_bef, data, data_aft
+        off_pre_feat = mx.sym.SliceChannel(off_pre_relu1, axis=0, num_outputs=2) # data, data_ref
         feat = off_pre_feat[0]
-        feat_aft = off_pre_feat[2]
+        feat_aft = off_pre_feat[1]
         slice_diff = feat_aft - feat
 
         # select_conv_feat_slice_last = mx.symbol.slice_axis(off_pre_relu, axis=0, begin=1, end=1)
@@ -1088,18 +1088,21 @@ class resnet_v1_101_off_sobel_rfcn(Symbol):
         num_classes = cfg.dataset.NUM_CLASSES
 
         data = mx.sym.Variable(name="data")
+        data_ref = mx.sym.Variable(name='data_ref')
         im_info = mx.sym.Variable(name="im_info")
         data_cache = mx.sym.Variable(name="data_cache")
         feat_cache = mx.sym.Variable(name="feat_cache")
-        conv_embed = mx.sym.Variable(name="conv_embed")
+        #conv_embed = mx.sym.Variable(name="conv_embed")
 
         # shared convolutional layers
-        conv_feat = self.get_resnet_v1(data)
+        concat_data = mx.symbol.Concat(*[data, data_ref], dim=0)
+        conv_feat = self.get_resnet_v1(concat_data) #feat_conv_3x3_relu
         #embed_feat = self.get_embednet(conv_feat)
         #conv_embed = mx.sym.Concat(conv_feat, embed_feat, name="conv_embed")
-        conv_embed = conv_feat
+        #conv_embed = mx.sym.Concat(conv_feat, name="conv_embed")
+        #conv_embed = conv_feat
 
-        group = mx.sym.Group([conv_embed, im_info, data_cache, feat_cache]) #data_cache,
+        group = mx.sym.Group([data, data_ref, conv_feat, im_info, data_cache, feat_cache]) #data_cache,
         self.sym = group
         return group
 
@@ -1111,9 +1114,10 @@ class resnet_v1_101_off_sobel_rfcn(Symbol):
         data_range = cfg.TEST.KEY_FRAME_INTERVAL * 2 + 1
 
         data_cur = mx.sym.Variable(name="data")                 # not used
+        data_ref = mx.sym.Variable(name='data_ref')
         im_info = mx.sym.Variable(name="im_info")
         data_cache = mx.sym.Variable(name="data_cache")         # data_cache contains data_range images
-        feat_cache = mx.sym.Variable(name="feat_cache")         # feat_cache contains the data_range feature maps of the images
+        feat_cache = mx.sym.Variable(name="feat_cache")    
 
         # make data_range copies of the center frame to pass through FlowNet
         #cur_data = mx.symbol.slice_axis(data_cache, axis=0, begin=cfg.TEST.KEY_FRAME_INTERVAL, end=cfg.TEST.KEY_FRAME_INTERVAL+1)
@@ -1146,9 +1150,9 @@ class resnet_v1_101_off_sobel_rfcn(Symbol):
         #aggregated_conv_feat = mx.sym.sum(weights * conv_feat, axis=0, keepdims=True)
         off_pre_conv1 = mx.symbol.Convolution(name='off_pre_conv1', data=feat_cache, num_filter=1008, pad=(0, 0), kernel=(1, 1), stride=(1, 1))
         off_pre_relu1 = mx.symbol.Activation(name='off_pre_relu1', data=off_pre_conv1, act_type='relu')
-        feat_cache_slice = mx.sym.SliceChannel(off_pre_relu1, axis=0, num_outputs=3)
+        feat_cache_slice = mx.sym.SliceChannel(off_pre_relu1, axis=0, num_outputs=2)
         feat1 = feat_cache_slice[0]
-        feat_aft1 = feat_cache_slice[2]
+        feat_aft1 = feat_cache_slice[1]
         slice_diff1 = feat_aft1 - feat1
 
         sobel_input = feat1
@@ -1157,9 +1161,9 @@ class resnet_v1_101_off_sobel_rfcn(Symbol):
         sobel_conv1 = mx.sym.Convolution(name='sobel_conv1', data=sobel_input, kernel=(1, 1), pad=(0, 0), stride=(1,1), num_filter=16)
         sobel_conv2 = mx.sym.Convolution(name='sobel_conv2', data=sobel_conv1, kernel=(3, 3), pad=(1, 1), stride=(1,1), num_filter=16)
         sobel_dropout = mx.symbol.Dropout(sobel_conv2, p=0.8)
-        off_concat = mx.symbol.Concat(slice_diff, sobel_dropout)
+        off_concat = mx.symbol.Concat(slice_diff1, sobel_dropout)
 
-        off_res_out11 = self.get_off_resnet(slice_diff1)
+        off_res_out11 = self.get_off_resnet(off_concat)
 
         
         conv_feats = mx.sym.SliceChannel(off_res_out11, axis=1, num_outputs=2)
@@ -1230,7 +1234,7 @@ class resnet_v1_101_off_sobel_rfcn(Symbol):
                                    name='bbox_pred_reshape')
 
         # group output
-        group = mx.sym.Group([data_cur, rois, cls_prob, bbox_pred])
+        group = mx.sym.Group([data_cur, data_ref, data_cache, rois, cls_prob, bbox_pred])
         self.sym = group
         return group
 

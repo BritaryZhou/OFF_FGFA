@@ -59,27 +59,35 @@ def get_pair_image(roidb, config):
     num_images = len(roidb)
     processed_ims = []
     processed_ref_ims = []
+    processed_eq_flags = []
     processed_roidb = []
     for i in range(num_images):
         roi_rec = roidb[i]
+        print 'get_pair_image, image{}'.format(roi_rec['image'])
+        print 'get_pair_image, frame_seg_id{}'.format(roi_rec['frame_seg_id'])
 
         eq_flag = 0 # 0 for unequal, 1 for equal
         assert os.path.exists(roi_rec['image']), '%s does not exist'.format(roi_rec['image'])
         im = cv2.imread(roi_rec['image'], cv2.IMREAD_COLOR|cv2.IMREAD_IGNORE_ORIENTATION)
 
         if roi_rec.has_key('pattern'):
+            # print 'pattern, get_pair_image, image{}'.format(roi_rec['image'])
+            # print 'get_pair_image, frame_seg_id{}'.format(roi_rec['frame_seg_id'])
             # just get the after frame, changed by zy
             #ref_id = min(max(roi_rec['frame_seg_id'] + np.random.randint(config.TRAIN.MIN_OFFSET, config.TRAIN.MAX_OFFSET+1), 0),roi_rec['frame_seg_len']-1)
             ref_id = min(max(roi_rec['frame_seg_id'] + 1, 0),roi_rec['frame_seg_len']-1)
+            print 'get_pair_image, ref_id:{}'.format(ref_id)
             ref_image = roi_rec['pattern'] % ref_id
             assert os.path.exists(ref_image), '%s does not exist'.format(ref_image)
             ref_im = cv2.imread(ref_image, cv2.IMREAD_COLOR|cv2.IMREAD_IGNORE_ORIENTATION)
             if ref_id == roi_rec['frame_seg_id']:
                 eq_flag = 1
+                print 'image equal'
                 assert 'image equal'
         else:
             ref_im = im.copy()
-            #eq_flag = 1
+            eq_flag = 1
+            print 'image equal'
             assert 'image equal'
 
         if roidb[i]['flipped']:

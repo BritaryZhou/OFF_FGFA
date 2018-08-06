@@ -132,8 +132,8 @@ class Predictor(object):
 
 def get_resnet_output(predictor, data_batch, data_names, cfg):
     output_all = predictor.predict(data_batch) 
-    
     data_dict_all = [dict(zip(data_names, data_batch.data[i])) for i in xrange(len(data_batch.data))]
+
     if cfg.TRAIN.E2E_NAME == 'base' or cfg.TRAIN.E2E_NAME == 'off':
         key_output_name = 'feat_conv_3x3_relu_output'
     else:
@@ -167,52 +167,15 @@ def get_resnet_output(predictor, data_batch, data_names, cfg):
 
 def im_detect(predictor, data_batch, data_names, scales, cfg):
     output_all = predictor.predict(data_batch)
-    # cv2.imwrite('/mnt/lustre/sunshuyang/FGFA-bj30/FGFA-725v/data_agre_input.jpg', output_all[0]['data'][0][0].asnumpy())
-    # cv2.imwrite('/mnt/lustre/sunshuyang/FGFA-bj30/FGFA-725v/data_ref_agre_input.jpg', output_all[0]['data_ref'][0][0].asnumpy())
-    # cv2.imwrite('/mnt/lustre/sunshuyang/FGFA-bj30/FGFA-725v/data_agre_cache.jpg', output_all[0]['data_cache'][0][0].asnumpy())
-    # cv2.imwrite('/mnt/lustre/sunshuyang/FGFA-bj30/FGFA-725v/feat_agre_input1.jpg', output_all[0]['feat_cache'][0][0].asnumpy())
-    # cv2.imwrite('/mnt/lustre/sunshuyang/FGFA-bj30/FGFA-725v/feat_agre_input2.jpg', output_all[0]['feat_cache'][1][0].asnumpy())
-    # cv2.imwrite('/mnt/lustre/sunshuyang/FGFA-bj30/FGFA-725v/off_ori.jpg', output_all[0]['off_res_add3_output'][0][0].asnumpy())
-
-    # off_c1 = output_all[0]['off_res_add3_output'][0].asnumpy()
-    # c, w, h = off_c1.shape[:3]
-    # off_sum = off_c1[0]
-    # divide_array = off_sum
-    # for i in range(1, c):
-    #     for j in range(h):
-    #         for w in range(w):
-    #             off_sum = off_sum + off_c1[i]
-    # for i in range(h):
-    #     for j in range(w):
-    #         divide_array[i,j] = 1024
-    # off_sum = off_sum / divide_array
-
-
-
-    # data_img_c1 = output_all[0]['data'][0][0].asnumpy()
-    # height, width = data_img_c1.shape[:2]
-    # off_res_np = output_all[0]['off_res_add3_output'][0][0].asnumpy()
-    # off_res_np_rs = cv2.resize(off_res_np, (width, height))
-
-    # for i in range(height):
-    #     for j in range(width):
-    #         off_res_np_rs[i][j] = off_res_np_rs[i][j] * data_img_c1[i][j]
-
-    # cv2.imwrite('/mnt/lustre/sunshuyang/FGFA-bj30/FGFA-725v/off.jpg', off_sum)
-    # assert error
-
-
     data_dict_all = [dict(zip(data_names, data_batch.data[i])) for i in xrange(len(data_batch.data))]
     scores_all = []
     pred_boxes_all = []
-
-    for output, data_dict, scale in zip(output_all, data_dict_all, scales): # for 1 time
+    for output, data_dict, scale in zip(output_all, data_dict_all, scales):
         if cfg.TEST.HAS_RPN:
             rois = output['rois_output'].asnumpy()[:, 1:]
         else:
             rois = data_dict['rois'].asnumpy().reshape((-1, 5))[:, 1:]
         im_shape = data_dict['data'].shape
-        # print im_shape
 
         # save output
         scores = output['cls_prob_reshape_output'].asnumpy()[0]
@@ -226,7 +189,6 @@ def im_detect(predictor, data_batch, data_names, scales, cfg):
 
         scores_all.append(scores)
         pred_boxes_all.append(pred_boxes)
-
     return zip(scores_all, pred_boxes_all, data_dict_all)
 
 
@@ -346,26 +308,15 @@ def pred_eval(gpu_id, feat_predictors, aggr_predictors, test_data, imdb, cfg, vi
                 pred_result = im_detect(aggr_predictors, data_batch, data_names, scales, cfg)
                 roidb_offset += 1
                 frame_ids[idx] = roidb_frame_ids[roidb_idx] + roidb_offset
-                print 'roidb_idx:{}'.format(roidb_idx)
-                print 'roidb_frames_ids[roidb_idx]:{}'.format(roidb_frame_ids[roidb_idx])
-                print 'roidb_offset:{}'.format(roidb_offset)
-                print 'idx:{}'.format(idx)
-                print 'frame_ids[idx]:{}'.format(frame_ids[idx])
+                # print 'roidb_idx:{}'.format(roidb_idx)
+                # print 'roidb_frames_ids[roidb_idx]:{}'.format(roidb_frame_ids[roidb_idx])
+                # print 'roidb_offset:{}'.format(roidb_offset)
+                # print 'idx:{}'.format(idx)
+                # print 'frame_ids[idx]:{}'.format(frame_ids[idx])
 
 
                 t2 = time.time() - t
                 t = time.time()
-                file_name = imdb.get_result_file_template().format('bind')
-                with open(file_name, 'a+') as f:
-                    for scores, boxes, data_dict in pred_result:
-                        for j in range(1, imdb.num_classes):
-                            # indexes = np.where(scores[:, j] > thresh)[0]
-                            # cls_scores = scores[indexes, j]
-                            # if cls_scores is not None:
-                            for m in range(len(scores[:,j])):
-                                f.write('{:d} {:d} {:f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.
-                                            format(frame_ids[idx], j, scores[m,j],
-                                                       boxes[m, 4], boxes[m, 5], boxes[m, 6], boxes[m, 7]))
                 if cfg.TRAIN.E2E_NAME == 'off':
                     process_pred_result(pred_result, imdb, thresh, cfg, nms, all_boxes, idx, max_per_image, vis, image.asnumpy(), scales)
                 else:
@@ -398,24 +349,13 @@ def pred_eval(gpu_id, feat_predictors, aggr_predictors, test_data, imdb, cfg, vi
                 pred_result = im_detect(aggr_predictors, data_batch, data_names, scales, cfg)
                 roidb_offset += 1
                 frame_ids[idx] = roidb_frame_ids[roidb_idx] + roidb_offset
-                print 'roidb_idx:{}'.format(roidb_idx)
-                print 'roidb_frames_ids[roidb_idx]:{}'.format(roidb_idx)
-                print 'roidb_offset:{}'.format(roidb_offset)
-                print 'frame_ids[idx]:{}'.format(idx)
+                # print 'roidb_idx:{}'.format(roidb_idx)
+                # print 'roidb_frames_ids[roidb_idx]:{}'.format(roidb_idx)
+                # print 'roidb_offset:{}'.format(roidb_offset)
+                # print 'frame_ids[idx]:{}'.format(idx)
 
                 t2 = time.time() - t
                 t = time.time()
-                file_name = imdb.get_result_file_template().format('bind')
-                with open(file_name, 'a+') as f:
-                    for scores, boxes, data_dict in pred_result:
-                        for j in range(1, imdb.num_classes):
-                            # indexes = np.where(scores[:, j] > thresh)[0]
-                            # cls_scores = scores[indexes, j]
-                            # if cls_scores is not None:
-                            for m in range(len(scores[:,j])):
-                                f.write('{:d} {:d} {:f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.
-                                            format(frame_ids[idx], j, scores[m,j],
-                                                       boxes[m, 4], boxes[m, 5], boxes[m, 6], boxes[m, 7]))
                 if cfg.TRAIN.E2E_NAME == 'off':
                     process_pred_result(pred_result, imdb, thresh, cfg, nms, all_boxes, idx, max_per_image, vis, image.asnumpy(), scales)
                 else:
@@ -436,6 +376,47 @@ def pred_eval(gpu_id, feat_predictors, aggr_predictors, test_data, imdb, cfg, vi
                                                                                     data_time / idx * test_data.batch_size,
                                                                                     net_time / idx * test_data.batch_size,
                                                                                     post_time / idx * test_data.batch_size))
+            #################################################
+            # end part of a video                           #
+            #################################################
+            elif key_frame_flag == 1:       # last frame of a video
+                data_list = deque(maxlen=all_frame_interval)
+                feat_list = deque(maxlen=all_frame_interval)
+                scales = [iim_info[0, 2] for iim_info in im_info]
+                image, feat = get_resnet_output(feat_predictors, data_batch, data_names, cfg)
+                data_list.append(image)
+                feat_list.append(feat)
+                prepare_data(data_list, feat_list, data_batch, logger)
+                print 'pred_eval,flag=1:{}'.format(data_batch.data[0][-2].shape)
+                if logger:
+                    logger.info('pred_eval,flag=1:{}'.format(data_batch.data[0][-2].shape))
+                pred_result = im_detect(aggr_predictors, data_batch, data_names, scales, cfg)
+
+                roidb_offset += 1
+                frame_ids[idx] = roidb_frame_ids[roidb_idx] + roidb_offset
+
+                t2 = time.time() - t
+                t = time.time()
+                if cfg.TRAIN.E2E_NAME == 'off':
+                    process_pred_result(pred_result, imdb, thresh, cfg, nms, all_boxes, idx, max_per_image, vis, data_list[0].asnumpy(), scales)
+                else:
+                    process_pred_result(pred_result, imdb, thresh, cfg, nms, all_boxes, idx, max_per_image, vis, data_list[cfg.TEST.KEY_FRAME_INTERVAL].asnumpy(), scales)
+                idx += test_data.batch_size
+                t3 = time.time() - t
+                t = time.time()
+                data_time += t1
+                net_time += t2
+                post_time += t3
+
+                print 'testing {}/{} data {:.4f}s net {:.4f}s post {:.4f}s'.format(idx, num_images,
+                                                                                   data_time / idx * test_data.batch_size,
+                                                                                   net_time / idx * test_data.batch_size,
+                                                                                   post_time / idx * test_data.batch_size)
+                if logger:
+                    logger.info('testing {}/{} data {:.4f}s net {:.4f}s post {:.4f}s'.format(idx, num_images,
+                                                                                             data_time / idx * test_data.batch_size,
+                                                                                             net_time / idx * test_data.batch_size,
+                                                                                             post_time / idx * test_data.batch_size))                  
         else:
 
             #################################################
@@ -491,23 +472,12 @@ def pred_eval(gpu_id, feat_predictors, aggr_predictors, test_data, imdb, cfg, vi
 
                     t2 = time.time() - t
                     t = time.time()
-                    file_name = imdb.get_result_file_template().format('bind')
-                    with open(file_name, 'a+') as f:
-                        for scores, boxes, data_dict in pred_result:
-                            for j in range(1, imdb.num_classes):
-                                # indexes = np.where(scores[:, j] > thresh)[0]
-                                # cls_scores = scores[indexes, j]
-                                # if cls_scores is not None:
-                                for m in range(len(scores[:,j])):
-                                    f.write('{:d} {:d} {:f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.
-                                                format(frame_ids[idx], j, scores[m,j],
-                                                           boxes[m, 4], boxes[m, 5], boxes[m, 6], boxes[m, 7])) 
                     if cfg.TRAIN.E2E_NAME == 'off':
                         process_pred_result(pred_result, imdb, thresh, cfg, nms, all_boxes, idx, max_per_image, vis,
-                                        data_list[0].asnumpy(), scales)
+                                    data_list[0].asnumpy(), scales)
                     else:
                         process_pred_result(pred_result, imdb, thresh, cfg, nms, all_boxes, idx, max_per_image, vis,
-                                        data_list[cfg.TEST.KEY_FRAME_INTERVAL].asnumpy(), scales)
+                                    data_list[cfg.TEST.KEY_FRAME_INTERVAL].asnumpy(), scales)
                     idx += test_data.batch_size
 
                     t3 = time.time() - t
@@ -516,14 +486,14 @@ def pred_eval(gpu_id, feat_predictors, aggr_predictors, test_data, imdb, cfg, vi
                     net_time += t2
                     post_time += t3
                     print 'testing {}/{} data {:.4f}s net {:.4f}s post {:.4f}s'.format(idx, num_images,
-                                                                                          data_time / idx * test_data.batch_size,
-                                                                                          net_time / idx * test_data.batch_size,
-                                                                                          post_time / idx * test_data.batch_size)
+                                                                                      data_time / idx * test_data.batch_size,
+                                                                                      net_time / idx * test_data.batch_size,
+                                                                                      post_time / idx * test_data.batch_size)
                     if logger:
                         logger.info('testing {}/{} data {:.4f}s net {:.4f}s post {:.4f}s'.format(idx, num_images,
-                                                                                                 data_time / idx * test_data.batch_size,
-                                                                                                 net_time / idx * test_data.batch_size,
-                                                                                                 post_time / idx * test_data.batch_size))
+                                                                                             data_time / idx * test_data.batch_size,
+                                                                                             net_time / idx * test_data.batch_size,
+                                                                                             post_time / idx * test_data.batch_size))
             #################################################
             # end part of a video                           #
             #################################################
@@ -550,17 +520,6 @@ def pred_eval(gpu_id, feat_predictors, aggr_predictors, test_data, imdb, cfg, vi
 
                     t2 = time.time() - t
                     t = time.time()
-                    file_name = imdb.get_result_file_template().format('bind')
-                    with open(file_name, 'a+') as f:
-                        for scores, boxes, data_dict in pred_result:
-                            for j in range(1, imdb.num_classes):
-                                # indexes = np.where(scores[:, j] > thresh)[0]
-                                # cls_scores = scores[indexes, j]
-                                # if cls_scores is not None:
-                                for m in range(len(scores[:,j])):
-                                    f.write('{:d} {:d} {:f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.
-                                                format(frame_ids[idx], j, scores[m,j],
-                                                           boxes[m, 4], boxes[m, 5], boxes[m, 6], boxes[m, 7]))
                     if cfg.TRAIN.E2E_NAME == 'off':
                         process_pred_result(pred_result, imdb, thresh, cfg, nms, all_boxes, idx, max_per_image, vis, data_list[0].asnumpy(), scales)
                     else:
@@ -573,14 +532,14 @@ def pred_eval(gpu_id, feat_predictors, aggr_predictors, test_data, imdb, cfg, vi
                     post_time += t3
 
                     print 'testing {}/{} data {:.4f}s net {:.4f}s post {:.4f}s'.format(idx, num_images,
-                                                                                       data_time / idx * test_data.batch_size,
-                                                                                       net_time / idx * test_data.batch_size,
-                                                                                       post_time / idx * test_data.batch_size)
+                                                                                   data_time / idx * test_data.batch_size,
+                                                                                   net_time / idx * test_data.batch_size,
+                                                                                   post_time / idx * test_data.batch_size)
                     if logger:
                         logger.info('testing {}/{} data {:.4f}s net {:.4f}s post {:.4f}s'.format(idx, num_images,
-                                                                                                 data_time / idx * test_data.batch_size,
-                                                                                                 net_time / idx * test_data.batch_size,
-                                                                                                 post_time / idx * test_data.batch_size))
+                                                                                             data_time / idx * test_data.batch_size,
+                                                                                             net_time / idx * test_data.batch_size,
+                                                                                             post_time / idx * test_data.batch_size))
                     # end_counter += 1
 
     with open(det_file, 'wb') as f:

@@ -764,7 +764,7 @@ class resnet_v1_101_rfcn(Symbol):
         conv_feats = mx.sym.SliceChannel(conv_feat, axis=1, num_outputs=2)
 
         # RPN layers
-        rpn_feat = conv_feat #conv_feats[0]
+        rpn_feat = conv_feats[0]
         rpn_cls_score = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=2 * num_anchors, name="rpn_cls_score")
         rpn_bbox_pred = mx.sym.Convolution(
@@ -823,7 +823,7 @@ class resnet_v1_101_rfcn(Symbol):
                                                               fg_fraction=cfg.TRAIN.FG_FRACTION)
 
         # res5
-        rfcn_feat = conv_feat #conv_feats[1]
+        rfcn_feat = conv_feats[1]
         rfcn_cls = mx.sym.Convolution(data=rfcn_feat, kernel=(1, 1), num_filter=7 * 7 * num_classes, name="rfcn_cls")
         rfcn_bbox = mx.sym.Convolution(data=rfcn_feat, kernel=(1, 1), num_filter=7 * 7 * 4 * num_reg_classes,
                                        name="rfcn_bbox")
@@ -915,7 +915,7 @@ class resnet_v1_101_rfcn(Symbol):
 
         ##############################################
         # RPN
-        rpn_feat = feat_cache #conv_feats[0]
+        rpn_feat = conv_feats[0]
         rpn_cls_score = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=2 * num_anchors, name="rpn_cls_score")
         rpn_bbox_pred = mx.sym.Convolution(
@@ -949,7 +949,7 @@ class resnet_v1_101_rfcn(Symbol):
                 threshold=cfg.TEST.RPN_NMS_THRESH, rpn_min_size=cfg.TEST.RPN_MIN_SIZE)
 
         # res5
-        rfcn_feat = feat_cache #conv_feats[1]
+        rfcn_feat = conv_feats[1]
         rfcn_cls = mx.sym.Convolution(data=rfcn_feat, kernel=(1, 1), num_filter=7 * 7 * num_classes, name="rfcn_cls")
         rfcn_bbox = mx.sym.Convolution(data=rfcn_feat, kernel=(1, 1), num_filter=7 * 7 * 4 * num_reg_classes,
                                        name="rfcn_bbox")

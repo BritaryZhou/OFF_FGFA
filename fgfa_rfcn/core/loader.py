@@ -80,18 +80,20 @@ class TestLoader(mx.io.DataIter):
 
     def reset(self):
         self.cur = 0
-        if self.shuffle:
+        if self.shuffle: # false
             np.random.shuffle(self.index)
 
     def iter_next(self):
-        return self.cur < self.size
+        return self.cur < self.size -1
 
     def next(self):
         if self.iter_next():
             self.get_batch()
             self.cur += self.batch_size
             self.cur_frameid += 1
-            if self.cur_frameid == self.cur_seg_len:
+            print 'iter,cur_frameid:{}'.format(self.cur_frameid)
+            print 'iter,cur_seg_len:{}'.format(self.cur_seg_len)
+            if self.cur_frameid == self.cur_seg_len - 1:
                 self.cur_roidb_index += 1
                 self.cur_frameid = 0
                 self.key_frame_flag = 1
@@ -112,14 +114,17 @@ class TestLoader(mx.io.DataIter):
 
     def get_batch(self):
         cur_roidb = self.roidb[self.cur_roidb_index].copy()
+        print 'get_batch, cur_frameid:{}'.format(self.cur_frameid)
+        print 'get_batch, cur_roidb[frame_seg_id]:{}'.format(cur_roidb['frame_seg_id'])
         cur_roidb['image'] = cur_roidb['pattern'] % self.cur_frameid
+        cur_roidb['frame_seg_id'] = self.cur_frameid
         self.cur_seg_len = cur_roidb['frame_seg_len']
         if self.cfg.TRAIN.E2E_NAME == "off" :
             data, label, im_info = get_rpn_pair_testbatch([cur_roidb], self.cfg)
         else:
             data, label, im_info = get_rpn_testbatch([cur_roidb], self.cfg)  
         if self.cur_frameid == 0: # new video
-                self.key_frame_flag = 0
+            self.key_frame_flag = 0
         else:       # normal frame
             self.key_frame_flag = 2
 
@@ -139,7 +144,10 @@ class TestLoader(mx.io.DataIter):
 
     def get_init_batch(self):
         cur_roidb = self.roidb[self.cur_roidb_index].copy()
+        print 'get_init_batch, cur_frameid:{}'.format(self.cur_frameid)
+        print 'get_init_batch, cur_roidb[frame_seg_id]:{}'.format(cur_roidb['frame_seg_id'])
         cur_roidb['image'] = cur_roidb['pattern'] % self.cur_frameid
+        cur_roidb['frame_seg_id'] = self.cur_frameid
         self.cur_seg_len = cur_roidb['frame_seg_len']
         if self.cfg.TRAIN.E2E_NAME == "off" :
             data, label, im_info = get_rpn_pair_testbatch([cur_roidb], self.cfg)
@@ -147,7 +155,7 @@ class TestLoader(mx.io.DataIter):
             data, label, im_info = get_rpn_testbatch([cur_roidb], self.cfg)   
         
         if self.cur_frameid == 0: # new frame
-                self.key_frame_flag = 0
+            self.key_frame_flag = 0
         else:       # normal frame
             self.key_frame_flag = 2
 
@@ -314,64 +322,64 @@ class AnchorLoader(mx.io.DataIter):
         label_shape = [(k, tuple([input_batch_size] + list(v.shape[1:]))) for k, v in zip(self.label_name, label)]
         return max_data_shape, label_shape
 
-    def get_batch(self):
-        # slice roidb
-        cur_from = self.cur
-        cur_to = min(cur_from + self.batch_size, self.size)
-        roidb = [self.roidb[self.index[i]] for i in range(cur_from, cur_to)]
+    # def get_batch(self):
+    #     # slice roidb
+    #     cur_from = self.cur
+    #     cur_to = min(cur_from + self.batch_size, self.size)
+    #     roidb = [self.roidb[self.index[i]] for i in range(cur_from, cur_to)]
 
-        # decide multi device slice
-        work_load_list = self.work_load_list
-        ctx = self.ctx
-        if work_load_list is None:
-            work_load_list = [1] * len(ctx)
-        assert isinstance(work_load_list, list) and len(work_load_list) == len(ctx), \
-            "Invalid settings for work load. "
-        slices = _split_input_slice(self.batch_size, work_load_list)
+    #     # decide multi device slice
+    #     work_load_list = self.work_load_list
+    #     ctx = self.ctx
+    #     if work_load_list is None:
+    #         work_load_list = [1] * len(ctx)
+    #     assert isinstance(work_load_list, list) and len(work_load_list) == len(ctx), \
+    #         "Invalid settings for work load. "
+    #     slices = _split_input_slice(self.batch_size, work_load_list)
 
-        # get testing data for multigpu
-        data_list = []
-        label_list = []
-        for islice in slices:
-            iroidb = [roidb[i] for i in range(islice.start, islice.stop)]
-            data, label = get_rpn_triple_batch(iroidb, self.cfg)
-            data_list.append(data)
-            label_list.append(label)
+    #     # get testing data for multigpu
+    #     data_list = []
+    #     label_list = []
+    #     for islice in slices:
+    #         iroidb = [roidb[i] for i in range(islice.start, islice.stop)]
+    #         data, label = get_rpn_triple_batch(iroidb, self.cfg)
+    #         data_list.append(data)
+    #         label_list.append(label)
 
-        # pad data first and then assign anchor (read label)
-        data_tensor = tensor_vstack([batch['data'] for batch in data_list])
-        for data, data_pad in zip(data_list, data_tensor):
-            data['data'] = data_pad[np.newaxis, :]
+    #     # pad data first and then assign anchor (read label)
+    #     data_tensor = tensor_vstack([batch['data'] for batch in data_list])
+    #     for data, data_pad in zip(data_list, data_tensor):
+    #         data['data'] = data_pad[np.newaxis, :]
 
-        new_label_list = []
-        for data, label in zip(data_list, label_list):
-            # infer label shape
-            data_shape = {k: v.shape for k, v in data.items()}
-            del data_shape['im_info']
-            _, feat_shape, _ = self.feat_sym.infer_shape(**data_shape)
-            feat_shape = [int(i) for i in feat_shape[0]]
+    #     new_label_list = []
+    #     for data, label in zip(data_list, label_list):
+    #         # infer label shape
+    #         data_shape = {k: v.shape for k, v in data.items()}
+    #         del data_shape['im_info']
+    #         _, feat_shape, _ = self.feat_sym.infer_shape(**data_shape)
+    #         feat_shape = [int(i) for i in feat_shape[0]]
 
-            # add gt_boxes to data for e2e
-            data['gt_boxes'] = label['gt_boxes'][np.newaxis, :, :]
+    #         # add gt_boxes to data for e2e
+    #         data['gt_boxes'] = label['gt_boxes'][np.newaxis, :, :]
 
-            # assign anchor for label
-            label = assign_anchor(feat_shape, label['gt_boxes'], data['im_info'], self.cfg,
-                                  self.feat_stride, self.anchor_scales,
-                                  self.anchor_ratios, self.allowed_border,
-                                  self.normalize_target, self.bbox_mean, self.bbox_std)
-            new_label_list.append(label)
+    #         # assign anchor for label
+    #         label = assign_anchor(feat_shape, label['gt_boxes'], data['im_info'], self.cfg,
+    #                               self.feat_stride, self.anchor_scales,
+    #                               self.anchor_ratios, self.allowed_border,
+    #                               self.normalize_target, self.bbox_mean, self.bbox_std)
+    #         new_label_list.append(label)
 
-        all_data = dict()
-        for key in self.data_name:
-            all_data[key] = tensor_vstack([batch[key] for batch in data_list])
+    #     all_data = dict()
+    #     for key in self.data_name:
+    #         all_data[key] = tensor_vstack([batch[key] for batch in data_list])
 
-        all_label = dict()
-        for key in self.label_name:
-            pad = -1 if key == 'label' else 0
-            all_label[key] = tensor_vstack([batch[key] for batch in new_label_list], pad=pad)
+    #     all_label = dict()
+    #     for key in self.label_name:
+    #         pad = -1 if key == 'label' else 0
+    #         all_label[key] = tensor_vstack([batch[key] for batch in new_label_list], pad=pad)
 
-        self.data = [mx.nd.array(all_data[key]) for key in self.data_name]
-        self.label = [mx.nd.array(all_label[key]) for key in self.label_name]
+    #     self.data = [mx.nd.array(all_data[key]) for key in self.data_name]
+    #     self.label = [mx.nd.array(all_label[key]) for key in self.label_name]
 
     def get_batch_individual(self):
         cur_from = self.cur

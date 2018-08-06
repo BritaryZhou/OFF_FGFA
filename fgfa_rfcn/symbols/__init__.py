@@ -2,9 +2,6 @@ import resnet_v1_101_flownet_rfcn
 import resnet_v1_101_flownet_off_rfcn
 import resnet_v1_101_off_rfcn
 import resnet_v1_101_off_bind_rfcn
-import resnet_v1_101_off3_bind_rfcn
-import resnet_v1_101_off6_bind_rfcn
-import resnet_v1_101_off3_concat_rfcn
-import resnet_v1_101_off6_concat_rfcn
+import resnet_v1_101_off_concat_rfcn
 import resnet_v1_101_off_sobel_rfcn
 import resnet_v1_101_rfcn

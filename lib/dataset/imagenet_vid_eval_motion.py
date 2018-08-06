@@ -128,7 +128,10 @@ def vid_eval_motion(multifiles, detpath, annopath, imageset_file, classname_map,
         obj_confs = obj_confs[sorted_inds]
         obj_bboxes = obj_bboxes[sorted_inds, :]
 
+    #print 'max(gt_img_ids):{}'.format(gt_img_ids)
+    #print 'max(img_ids):{}'.format(img_ids)
     num_imgs = max(max(gt_img_ids),max(img_ids)) + 1
+    #print 'num_imgs:{}'.format(num_imgs)
     obj_labels_cell = [None] * num_imgs
     obj_confs_cell = [None] * num_imgs
     obj_bboxes_cell = [None] * num_imgs

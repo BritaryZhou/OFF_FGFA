@@ -11,9 +11,9 @@ default:
   frequent: 100
   kvstore: device
 network:
-  pretrained: "./model/pretrained_model/resnet_rfcn_vid_1024"    #resnet_v1_101"
+  pretrained: "./model/pretrained_model/resnet_rfcn_vid"    #resnet_v1_101"
   #retrained_flow: "./model/pretrained_model/flownet"
-  pretrained_epoch: 2
+  pretrained_epoch: 3
   PIXEL_MEANS:
   - 103.06
   - 115.90
@@ -64,7 +64,7 @@ TRAIN:
   warmup: false
   begin_epoch: 0
   end_epoch: 4
-  model_prefix: 'resnet_off_bind_1024_rfcn_vid'
+  model_prefix: 'resnet_off_bind_rfcn_vid'
   E2E_NAME: 'off'
   MIN_OFFSET: 0
   MAX_OFFSET: 1

@@ -37,7 +37,7 @@ def get_rpn_testbatch(roidb, cfg):
     :param roidb: ['image', 'flipped']
     :return: data, label, im_info
     """
-    # assert len(roidb) == 1, 'Single batch only'
+    assert len(roidb) == 1, 'Single batch only'
     imgs, roidb = get_image(roidb, cfg)
     im_array = imgs
     im_info = [np.array([roidb[i]['im_info']], dtype=np.float32) for i in range(len(roidb))]
