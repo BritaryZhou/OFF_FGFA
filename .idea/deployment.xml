@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData">
+    <serverData>
+      <paths name="BJ30">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/FGFA-725v" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="HK75">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/FGFA-bj30/FGFA-725v" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="kevin@172.16.0.33:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/kevin/FGFA-163" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>
